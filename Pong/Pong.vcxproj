@@ -160,6 +160,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\display.cpp" />
+    <ClCompile Include="src\game.cpp" />
     <ClCompile Include="src\indexBuffer.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer.cpp" />
@@ -170,6 +171,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="headers\display.h" />
+    <ClInclude Include="headers\game.h" />
     <ClInclude Include="headers\indexBuffer.h" />
     <ClInclude Include="headers\renderer.h" />
     <ClInclude Include="headers\shader.h" />
