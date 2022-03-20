@@ -14,6 +14,8 @@ enum class Direction {
 class Game {
 private:
 	Display display;
+	bool gameBegin;
+
 	double cpuPaddlePos[2];
 	double cpuPaddleDir;
 	double userPaddlePos[2];
@@ -49,6 +51,7 @@ private:
 public:
 	Game(const Display& p_display);
 
+	void beginGame();
 	void changeDirection(Direction direction);
 	void drawCpuPaddle(Shader& shader, Renderer& renderer, VertexArray& vaPaddle, IndexBuffer& ib);
 	void drawUserPaddle(Shader& shader, Renderer& renderer, VertexArray& vaPaddle, IndexBuffer& ib);
