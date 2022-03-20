@@ -1,3 +1,6 @@
+#include <iostream>
+#include <random>
+
 #include "GL/glew.h"
 #include "game.h"
 #include "vertexBuffer.h"
@@ -6,10 +9,26 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    Game* game;
+    game = (Game*)glfwGetWindowUserPointer(window);
+
+    if ((key == GLFW_KEY_W || key == GLFW_KEY_UP) && (action == GLFW_REPEAT || action == GLFW_PRESS))
+        game->changeDirection(Direction::UP);
+    else if ((key == GLFW_KEY_S || key == GLFW_KEY_DOWN) && (action == GLFW_REPEAT || action == GLFW_PRESS))
+        game->changeDirection(Direction::DOWN);
+    else if (action == GLFW_RELEASE)
+        game->changeDirection(Direction::NONE);
+}
+
 Game::Game(const Display& p_display)
-    : display(p_display), cpuPaddlePos(p_display.getHeight() / 2), userPaddlePos(p_display.getHeight() / 2), ballPos { p_display.getWidth() / 2, p_display.getHeight() / 2 },
+    : display(p_display), cpuPaddlePos{ 100, (double)p_display.getHeight() / 2 }, cpuPaddleDir(0), userPaddlePos{ (double)p_display.getWidth() - 100, (double)p_display.getHeight() / 2 }, userPaddleDir(0), ballDir{ 0, 0 }, ballPos{ (double)p_display.getWidth() / 2, ((double)p_display.getHeight() / 2) },
     proj(glm::ortho(0.0f, (float)display.getWidth(), 0.0f, (float)display.getHeight(), -1.0f, 1.0f)),
     view(glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0))), model(glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0))) {
+
+
+    glfwSetWindowUserPointer(display.getWindow(), this);
+    glfwSetKeyCallback(display.getWindow(), key_callback);
 
     // Make paddle buffer
     VertexArray vaPaddle;
@@ -25,7 +44,6 @@ Game::Game(const Display& p_display)
 
     IndexBuffer ib(indices, 6);
 
-
     mvp = proj * view * model;
 
     Renderer renderer;
@@ -40,18 +58,80 @@ Game::Game(const Display& p_display)
     vbPaddle.unbind();
     ib.unbind();
 
+    std::random_device random_device;
+    std::mt19937 engine{ random_device() };
+
+    int signs[2] = { 1, -1 };
+
+    std::uniform_int_distribution<int> sign(0, 1);
+    std::uniform_int_distribution<int> xSpeed(4, 7);
+    std::uniform_int_distribution<int> ySpeed(1, 4);
+
+    ballDir[0] = (double)(signs[sign(engine)] * xSpeed(engine));
+    ballDir[1] = (double)(signs[sign(engine)] * ySpeed(engine));
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(display.getWindow())) {
         /* Render here */
         renderer.clear();
         shader.bind();
 
+        if (cpuPaddlePos[1] + (paddleHeight / 2) < ballPos[1] + (ballWidth / 2) && (cpuPaddlePos[1] < (display.getHeight() - paddleHeight)))
+            cpuPaddlePos[1] += 0.8 * abs(ballDir[1]);
+        else if (cpuPaddlePos[1] + (paddleHeight / 2) > ballPos[1] + (ballWidth / 2) && cpuPaddlePos[1] > 0)
+            cpuPaddlePos[1] += -0.8 * abs(ballDir[1]);
+
+
         // Draw Cpu Paddle
         drawCpuPaddle(shader, renderer, vaPaddle, ib);
 
+        if (userPaddlePos[1] > 0 && userPaddleDir == -1) 
+            userPaddlePos[1] += userPaddleDir * 10;
+        if (userPaddlePos[1] < (display.getHeight() - paddleHeight) && userPaddleDir == 1)
+            userPaddlePos[1] += userPaddleDir * 10;
         // Draw User Paddle
         drawUserPaddle(shader, renderer, vaPaddle, ib);
 
+        int ballIncrementX = ballDir[0];
+        int ballIncrementY = ballDir[1];
+
+        // If ball hits horizontal sides of screen, exit game and declare a winner
+        if (ballPos[0] <= 0 && ballDir[0] < 0) {
+            std::cout << "You win!" << std::endl;
+            break;
+        }
+        if (ballPos[0] + ballWidth >= (double)display.getWidth() && ballDir[0] > 0) {
+            std::cout << "You Lose!" << std::endl;
+            break;
+        }
+
+        // If ball hits vertical sides of screen, reverse vertical direction to 'bounce' the ball
+        if ((ballPos[1] <= 0 && ballDir[1] < 0) || (ballPos[1] + ballWidth >= (double)display.getHeight() && ballDir[1] > 0))
+            ballDir[1] *= -1;
+
+        // If ball hits either paddle, bounce ball off of it. Balls that hit center of paddle increase x speed, balls that hit top or bottom of paddle decrease x speed and increase y speed.
+        if (ballPos[0] + ballWidth + ballIncrementX > userPaddlePos[0] && ballPos[0] + ballIncrementX < userPaddlePos[0] + paddleWidth
+            && ballPos[1] + ballWidth + ballIncrementY > userPaddlePos[1] && ballPos[1] + ballIncrementY < userPaddlePos[1] + paddleHeight)
+        {
+            ballDir[0] *= -1;
+            double hitPos = ((ballPos[1] + ballWidth / 2) - (userPaddlePos[1] + paddleHeight / 2)) / 25;
+            ballDir[0] = ballDir[0] + (1 - abs(hitPos)) * ballDir[0] * 0.25;
+            ballDir[1] = ballDir[1] + abs(ballDir[1]) * hitPos * 0.25;
+            /*std::cout << "Speed before: " << ballDir[0] << ", Speed after: " << ballDir[0] + (1 - abs(hitPos)) * ballDir[0] * 0.25 << std::endl;
+            std::cout << hitPos << std::endl;*/
+        }
+
+        if (ballPos[0] + ballWidth + ballIncrementX > cpuPaddlePos[0] && ballPos[0] + ballIncrementX < cpuPaddlePos[0] + paddleWidth
+            && ballPos[1] + ballWidth + ballIncrementY > cpuPaddlePos[1] && ballPos[1] + ballIncrementY < cpuPaddlePos[1] + paddleHeight) 
+        {
+            ballDir[0] *= -1;
+            double hitPos = ((ballPos[1] + ballWidth / 2) - (cpuPaddlePos[1] + paddleHeight / 2)) / 25;
+            ballDir[0] = ballDir[0] + (1 - abs(hitPos)) * ballDir[0] * 0.25;
+            ballDir[1] = ballDir[1] + abs(ballDir[1]) * hitPos * 0.25;
+        }
+
+        ballPos[0] += ballIncrementX;
+        ballPos[1] += ballIncrementY;
         // Draw Ball
         drawBall(shader, renderer, vaBall, ib);
 
@@ -63,8 +143,17 @@ Game::Game(const Display& p_display)
     }
 }
 
+void Game::changeDirection(Direction direction) {
+    if (direction == Direction::UP)
+        userPaddleDir = 1;
+    else if (direction == Direction::DOWN)
+        userPaddleDir = -1;
+    else if (direction == Direction::NONE)
+        userPaddleDir = 0;
+}
+
 void Game::drawCpuPaddle(Shader& shader, Renderer& renderer, VertexArray& vaPaddle, IndexBuffer& ib) {
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(100, cpuPaddlePos, 0));
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(cpuPaddlePos[0], cpuPaddlePos[1], 0));
     mvp = proj * view * model;
 
     shader.setUniformMat4f("u_MVP", mvp);
@@ -72,7 +161,7 @@ void Game::drawCpuPaddle(Shader& shader, Renderer& renderer, VertexArray& vaPadd
 }
 
 void Game::drawUserPaddle(Shader& shader, Renderer& renderer, VertexArray& vaPaddle, IndexBuffer& ib) {
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(display.getWidth() - 100, userPaddlePos, 0));
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(userPaddlePos[0], userPaddlePos[1], 0));
     mvp = proj * view * model;
 
     shader.setUniformMat4f("u_MVP", mvp);

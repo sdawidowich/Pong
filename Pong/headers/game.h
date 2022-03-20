@@ -7,12 +7,23 @@
 
 #include "glm/glm.hpp"
 
+enum class Direction {
+	NONE = -1, LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3
+};
+
 class Game {
 private:
 	Display display;
-	unsigned int cpuPaddlePos;
-	unsigned int userPaddlePos;
-	unsigned int ballPos[2];
+	double cpuPaddlePos[2];
+	double cpuPaddleDir;
+	double userPaddlePos[2];
+	double userPaddleDir;
+	double ballPos[2];
+	double ballDir[2];
+
+	const double ballWidth = 20;
+	const double paddleWidth = 15;
+	const double paddleHeight = 100;
 
 	const float paddleVertices[8] = {
 		 0.0f,   0.0f,
@@ -38,6 +49,7 @@ private:
 public:
 	Game(const Display& p_display);
 
+	void changeDirection(Direction direction);
 	void drawCpuPaddle(Shader& shader, Renderer& renderer, VertexArray& vaPaddle, IndexBuffer& ib);
 	void drawUserPaddle(Shader& shader, Renderer& renderer, VertexArray& vaPaddle, IndexBuffer& ib);
 	void drawBall(Shader& shader, Renderer& renderer, VertexArray& vaBall, IndexBuffer& ib);

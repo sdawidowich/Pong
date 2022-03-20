@@ -14,13 +14,15 @@ int main() {
     if (!glfwInit())
         return -1;
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     int height = 720, width = 1080;
     Display display(height, width, "Pong");
     display.verifyWindow();
+
+    glfwSwapInterval(1);
 
     if (glewInit() != GLEW_OK) {
         return -1;
